@@ -6,7 +6,7 @@ import time
 import traceback
 
 from .compat import StringIO, stringify, iteritems, numeric_types
-from .ext import errors
+from .ext import errors, system
 
 
 log = logging.getLogger(__name__)
@@ -244,6 +244,10 @@ class Span(object):
         self.set_tag(errors.ERROR_MSG, exc_val)
         self.set_tag(errors.ERROR_TYPE, exc_type_str)
         self.set_tag(errors.ERROR_STACK, tb)
+
+    def set_pid(self, pid):
+        """ Tag the span with a process id """
+        self.set_tag(system.PID, pid)
 
     def pprint(self):
         """ Return a human readable version of the span. """

@@ -7,6 +7,7 @@ from .sampler import AllSampler
 from .writer import AgentWriter
 from .span import Span
 from . import compat
+from os import getpid
 
 
 log = logging.getLogger(__name__)
@@ -157,6 +158,7 @@ class Tracer(object):
                 resource=resource,
                 span_type=span_type,
             )
+            span.set_pid(getpid())
             self.sampler.sample(span)
 
         # add common tags
