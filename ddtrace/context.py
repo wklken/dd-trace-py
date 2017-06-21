@@ -57,7 +57,9 @@ class Context(object):
         """
         with self._lock:
             self._finished_spans += 1
-            self._current_span = span._parent
+            # if we're closing the current span, it's not current any more
+            if self._current_span == span:
+                self._current_span = span._parent
 
             # notify if the trace is not closed properly; this check is executed only
             # if the tracer debug_logging is enabled and when the root span is closed
