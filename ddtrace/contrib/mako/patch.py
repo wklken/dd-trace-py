@@ -1,9 +1,7 @@
-import wrapt
 import logging
 
 # project
 from ddtrace import Pin
-from ddtrace.util import unwrap
 from ...ext import http
 
 # 3p
@@ -19,30 +17,30 @@ def patch():
         return
     setattr(mako, '_datadog_patch', True)
 
-    # _w = wrapt.wrap_function_wrapper
-    # _w('mako.template', 'Template.render', traced_render)
-    # _w('mako.template', 'Template.render_unicode', traced_render_unicode)
-    # _w('mako.template', 'Template.render_context', traced_render_context)
-    # Pin(service="mako", app="mako", app_type=http.TEMPLATE).onto(mako.template.Template)
-
     pin = Pin(service="mako", app="mako", app_type=http.TEMPLATE)  # .onto(mako.template.Template)
     tracer = pin.tracer
     patch_template_render(tracer)
     patch_template_render_unicode(tracer)
+    patch_template_render_context(tracer)
 
 
 def unpatch():
     if getattr(mako, '_datadog_patch', False):
         setattr(mako, '_datadog_patch', False)
-        unwrap(mako.template.Template, 'render')
-        unwrap(mako.template.Template, 'render_unicode')
-        unwrap(mako.template.Template, 'render_context')
 
+        if getattr(Template, '_datadog_original_render', None):
+            Template.render = Template._datadog_original_render
 
-# function 1, patch object
+        if getattr(Template, '_datadog_original_render_unicode', None):
+            Template.render_unicode = Template._datadog_original_render_unicode
+
+        if getattr(Template, '_datadog_original_render_context', None):
+            Template.render_context = Template._datadog_original_render_context
+
 
 def patch_template_render(tracer):
     attr = '_datadog_original_render'
+
     if getattr(Template, attr, None):
         log.debug("already patched")
         return
@@ -53,7 +51,7 @@ def patch_template_render(tracer):
             try:
                 return Template._datadog_original_render(self, *args, **data)
             finally:
-                template_name = self.filename or getattr(self, 'template_name', None) or 'unknown'
+                template_name = getattr(self, 'filename', None) or 'unknown'
                 span.resource = template_name
                 span.set_tag('mako.template_name', template_name)
 
@@ -62,6 +60,7 @@ def patch_template_render(tracer):
 
 def patch_template_render_unicode(tracer):
     attr = '_datadog_original_render_unicode'
+
     if getattr(Template, attr, None):
         log.debug("already patched")
         return
@@ -72,39 +71,28 @@ def patch_template_render_unicode(tracer):
             try:
                 return Template._datadog_original_render_unicode(self, *args, **data)
             finally:
-                template_name = self.filename or getattr(self, 'template_name', None) or 'unknown'
+                template_name = getattr(self, 'filename', None) or 'unknown'
                 span.resource = template_name
                 span.set_tag('mako.template_name', template_name)
 
     Template.render_unicode = traced_render_unicode
 
 
-# function2
+def patch_template_render_context(tracer):
+    attr = '_datadog_original_render_context'
 
-def traced_render(func, instance, args, kwargs):
-    print "call render:", args, kwargs
-    pin = Pin.get_from(instance)
-    print "pin:", pin
-    if not pin or not pin.enabled():
-        return func(*args, **kwargs)
+    if getattr(Template, attr, None):
+        log.debug("already patched")
+        return
+    setattr(Template, attr, Template.render_context)
 
-    with pin.tracer.trace('mako.render', service=pin.service, span_type=http.TEMPLATE) as s:
-        return func(*args, **kwargs)
+    def traced_render_context(self, context, *args, **data):
+        with tracer.trace('mako.template.render_context', span_type=http.TEMPLATE) as span:
+            try:
+                return Template._datadog_original_render_context(self, context, *args, **data)
+            finally:
+                template_name = getattr(self, 'filename', None) or 'unknown'
+                span.resource = template_name
+                span.set_tag('mako.template_name', template_name)
 
-
-def traced_render_unicode(func, instance, args, kwargs):
-    pin = Pin.get_from(instance)
-    if not pin or not pin.enabled():
-        return func(*args, **kwargs)
-
-    with pin.tracer.trace('mako.render_unicode', service=pin.service, span_type=http.TEMPLATE) as s:
-        return func(*args, **kwargs)
-
-
-def traced_render_context(func, instance, args, kwargs):
-    pin = Pin.get_from(instance)
-    if not pin or not pin.enabled():
-        return func(*args, **kwargs)
-
-    with pin.tracer.trace('mako.render_context', service=pin.service, span_type=http.TEMPLATE) as s:
-        return func(*args, **kwargs)
+    Template.render_context = traced_render_context
