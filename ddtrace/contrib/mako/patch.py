@@ -1,4 +1,4 @@
-# import wrapt
+import wrapt
 import logging
 
 # project
@@ -23,11 +23,12 @@ def patch():
     # _w('mako.template', 'Template.render', traced_render)
     # _w('mako.template', 'Template.render_unicode', traced_render_unicode)
     # _w('mako.template', 'Template.render_context', traced_render_context)
+    # Pin(service="mako", app="mako", app_type=http.TEMPLATE).onto(mako.template.Template)
+
     pin = Pin(service="mako", app="mako", app_type=http.TEMPLATE)  # .onto(mako.template.Template)
     tracer = pin.tracer
     patch_template_render(tracer)
     patch_template_render_unicode(tracer)
-    # create tracer, then, use it
 
 
 def unpatch():
@@ -37,18 +38,6 @@ def unpatch():
         unwrap(mako.template.Template, 'render_unicode')
         unwrap(mako.template.Template, 'render_context')
 
-
-# def patch_template(tracer):
-    # def traced_render(self, context):
-        # with tracer.trace('mako.template', span_type=http.TEMPLATE) as span:
-            # try:
-                # return Template._datadog_original_render(self, context)
-            # finally:
-                # template_name = self.name or getattr(context, 'template_name', None) or 'unknown'
-                # span.resource = template_name
-                # span.set_tag('mako.template_name', template_name)
-
-    # Template.render = traced_render
 
 # function 1, patch object
 
@@ -92,30 +81,30 @@ def patch_template_render_unicode(tracer):
 
 # function2
 
-# def traced_render(func, instance, args, kwargs):
-    # print "call render:", args, kwargs
-    # pin = Pin.get_from(instance)
-    # print "pin:", pin
-    # if not pin or not pin.enabled():
-        # return func(*args, **kwargs)
+def traced_render(func, instance, args, kwargs):
+    print "call render:", args, kwargs
+    pin = Pin.get_from(instance)
+    print "pin:", pin
+    if not pin or not pin.enabled():
+        return func(*args, **kwargs)
 
-    # with pin.tracer.trace('mako.render', service=pin.service, span_type=http.TEMPLATE) as s:
-        # return func(*args, **kwargs)
-
-
-# def traced_render_unicode(func, instance, args, kwargs):
-    # pin = Pin.get_from(instance)
-    # if not pin or not pin.enabled():
-        # return func(*args, **kwargs)
-
-    # with pin.tracer.trace('mako.render_unicode', service=pin.service, span_type=http.TEMPLATE) as s:
-        # return func(*args, **kwargs)
+    with pin.tracer.trace('mako.render', service=pin.service, span_type=http.TEMPLATE) as s:
+        return func(*args, **kwargs)
 
 
-# def traced_render_context(func, instance, args, kwargs):
-    # pin = Pin.get_from(instance)
-    # if not pin or not pin.enabled():
-        # return func(*args, **kwargs)
+def traced_render_unicode(func, instance, args, kwargs):
+    pin = Pin.get_from(instance)
+    if not pin or not pin.enabled():
+        return func(*args, **kwargs)
 
-    # with pin.tracer.trace('mako.render_context', service=pin.service, span_type=http.TEMPLATE) as s:
-        # return func(*args, **kwargs)
+    with pin.tracer.trace('mako.render_unicode', service=pin.service, span_type=http.TEMPLATE) as s:
+        return func(*args, **kwargs)
+
+
+def traced_render_context(func, instance, args, kwargs):
+    pin = Pin.get_from(instance)
+    if not pin or not pin.enabled():
+        return func(*args, **kwargs)
+
+    with pin.tracer.trace('mako.render_context', service=pin.service, span_type=http.TEMPLATE) as s:
+        return func(*args, **kwargs)
