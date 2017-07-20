@@ -300,4 +300,4 @@ class Span(object):
 
 def _new_id():
     """Generate a random trace_id or span_id"""
-    return random.getrandbits(64)
+    return random.getrandbits(63)
