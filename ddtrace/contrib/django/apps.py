@@ -4,6 +4,7 @@ import logging
 from django.apps import AppConfig
 
 # project
+import os
 from .db import patch_db
 from .conf import settings
 from .cache import patch_cache
@@ -43,8 +44,8 @@ class TracerConfig(AppConfig):
         # AgentWriter, it breaks all tests. The configure() behavior must
         # be changed to use it in this integration
         tracer.enabled = settings.ENABLED
-        tracer.writer.api.hostname = settings.AGENT_HOSTNAME
-        tracer.writer.api.port = settings.AGENT_PORT
+        tracer.writer.api.hostname = os.environ.get("DATADOG_TRACE_AGENT_HOSTNAME") or settings.AGENT_HOSTNAME
+        tracer.writer.api.port = os.environ.get("DATADOG_TRACE_AGENT_PORT") or settings.AGENT_PORT
 
         if settings.AUTO_INSTRUMENT:
             # trace Django internals
