@@ -2,7 +2,7 @@ import ddtrace
 
 from tornado import template
 
-from . import decorators, TracerStackContext
+from . import decorators, context_provider
 from .constants import CONFIG_KEY
 
 from ...ext import AppTypes
@@ -32,16 +32,20 @@ def tracer_config(__init__, app, args, kwargs):
     tracer = settings['tracer']
     service = settings['default_service']
 
+    # extract extra settings
+    extra_settings = settings.get('settings', {})
+
     # the tracer must use the right Context propagation and wrap executor;
     # this action is done twice because the patch() method uses the
     # global tracer while here we can have a different instance (even if
     # this is not usual).
     tracer.configure(
-        context_provider=TracerStackContext,
+        context_provider=context_provider,
         wrap_executor=decorators.wrap_executor,
         enabled=settings.get('enabled', None),
         hostname=settings.get('agent_hostname', None),
         port=settings.get('agent_port', None),
+        settings=extra_settings,
     )
 
     # set global tags if any

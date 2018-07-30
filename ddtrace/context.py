@@ -52,6 +52,12 @@ class Context(object):
             return self._parent_span_id
 
     @property
+    def sampled(self):
+        """Return current context sampled flag."""
+        with self._lock:
+            return self._sampled
+
+    @property
     def sampling_priority(self):
         """Return current context sampling priority."""
         with self._lock:
@@ -62,6 +68,21 @@ class Context(object):
         """Set sampling priority."""
         with self._lock:
             self._sampling_priority = value
+
+    def clone(self):
+        """
+        Partially clones the current context.
+        It copies everything EXCEPT the registered and finished spans.
+        """
+        with self._lock:
+            new_ctx = Context(
+                trace_id=self._parent_trace_id,
+                span_id=self._parent_span_id,
+                sampled=self._sampled,
+                sampling_priority=self._sampling_priority,
+            )
+            new_ctx._current_span = self._current_span
+            return new_ctx
 
     def get_current_span(self):
         """
